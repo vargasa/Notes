@@ -3,6 +3,7 @@
 # Analyzing Elections Results
 """
 # python3
+# For easy use paste code into https://colab.research.google.com/
 # http://k-lab.tk/content/html/elections201801.php
 import requests # handle http request
 import json # parse JSON responses from website
