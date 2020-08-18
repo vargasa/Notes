@@ -10,6 +10,7 @@
 #include <cstring>
 #include <map>
 #include <functional>
+#include <bits/stdc++.h>
 #include "rapidXML/rapidxml.hpp"
 #include "rapidXML/rapidxml_utils.hpp"
 
@@ -35,7 +36,30 @@ int getNShares(rapidxml::xml_node<>* node){
   return atoi(ss);
 }
 
+int getValue(rapidxml::xml_node<>* node){
+  rapidxml::xml_node<>* nn = node->first_node("value");
+  assert(nn);
+  size_t s = nn->value_size();
+  char ss[s];
+  memcpy(ss,nn->value(),s);
+  int x;
+  sscanf(ss, "%d", &x);
+  return x;
+}
 
+std::string getNameIssuer(rapidxml::xml_node<>* node){
+  rapidxml::xml_node<>* nn = node->first_node("nameOfIssuer");
+  assert(nn);
+  size_t s = nn->value_size();
+  char ss[s];
+  memcpy(ss,nn->value(),s);
+  return std::string(ss);
+}
+
+bool sortByValue(const std::tuple<std::string, int, float>& a,
+                 const std::tuple<std::string, int, float>& b){
+  return !(std::get<1>(a) < std::get<1>(b));
+}
 
 int main(){
 
@@ -50,7 +74,7 @@ int main(){
 
   rapidxml::xml_node<>* row = doc2.first_node()->first_node();
 
-  std::map<float,std::string> delta;
+  std::vector<std::tuple<std::string,int,float>> delta;
 
   std::string cusip;
 
@@ -61,13 +85,28 @@ int main(){
       int oldShares = getNShares(matchNode);
       int newShares = getNShares(row);
       assert(oldShares != 0);
-      delta.emplace((float)(newShares - oldShares)/(float)oldShares, cusip);
+      float d = (float)(newShares - oldShares)/(float)oldShares;
+      delta.emplace_back(std::make_tuple(cusip,getValue(matchNode),d));
     }
     row = row->next_sibling();
   }
 
-  for(const auto p: delta){
-    std::cout << p.first << "\t" << p.second << "\t" << getNode(doc2.first_node(),p.second)->first_node("nameOfIssuer")->value() <<std::endl;
+  std::sort(delta.begin(),delta.end(),sortByValue);
+
+  std::string c1 = "bgcolor=\"lightpink\"";
+  std::string c2 = "bgcolor=\"lightgreen\"";
+  std::string *c;
+
+  std::cout << "<table>\n" ;
+  int ii = 0;
+  for(const auto& tp: delta){
+    c = std::get<2>(tp) < 0? &c1:&c2;
+    rapidxml::xml_node<>* nn = getNode(doc2.first_node(),std::get<0>(tp));
+    std::cout << "\t<tr " << *c << "><td>" << ++ii << "</td><td>"
+              << std::get<1>(tp) << "</td><td>"
+              << getNameIssuer(nn) << "</td><td>"
+              << std::get<2>(tp)*100 << "%</td></tr>" <<std::endl;
   }
+  std::cout << "</table>\n";
   return 0;
 }
