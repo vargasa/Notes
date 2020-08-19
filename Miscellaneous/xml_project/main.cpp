@@ -1,6 +1,9 @@
 /*
   wget -c https://www.sec.gov/Archives/edgar/data/1037389/000103738920000321/renaissance13Fq22020_holding.xml
   wget -c https://www.sec.gov/Archives/edgar/data/1037389/000103738920000320/renaissance13Fq12020_holding.xml
+
+  ./a.out renaissance13Fq12020_holding.xml renaissance13Fq22020_holding.xml
+
 */
 
 #include <iostream>
@@ -19,10 +22,10 @@ rapidxml::xml_node<>* getNode(const rapidxml::xml_node<>* root,
 
   rapidxml::xml_node<>* nn =  root->first_node();
 
-  while(nn->next_sibling()){
-    nn = nn->next_sibling();
+  do {
     if (nn->first_node("cusip")->value() == cusip) return nn;
-  }
+    nn = nn->next_sibling();
+  } while(nn->next_sibling());
 
   return 0;
 }
@@ -61,10 +64,16 @@ bool sortByValue(const std::tuple<std::string, int, float>& a,
   return !(std::get<1>(a) < std::get<1>(b));
 }
 
-int main(){
 
-  rapidxml::file<> xml1("renaissance13Fq12020_holding.xml");
-  rapidxml::file<> xml2("renaissance13Fq22020_holding.xml");
+
+
+
+int main(int argc, char *argv[]){
+
+  assert(argc == 3);
+
+  rapidxml::file<> xml1(argv[1]);
+  rapidxml::file<> xml2(argv[2]);
 
   rapidxml::xml_document<> doc1;
   doc1.parse<0>(xml1.data());
