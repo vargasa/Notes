@@ -84,10 +84,11 @@ int main(int argc, char *argv[]){
   rapidxml::xml_node<>* row = doc2.first_node()->first_node();
 
   std::vector<std::tuple<std::string,int,float>> delta;
+  std::vector<std::tuple<std::string,int,float>> newAdd;
 
   std::string cusip;
 
-  while(row->next_sibling()) {
+  do {
     cusip = row->first_node("cusip")->value();
     rapidxml::xml_node<>* matchNode = getNode(doc1.first_node(), cusip);
     if(matchNode){
@@ -96,9 +97,11 @@ int main(int argc, char *argv[]){
       assert(oldShares != 0);
       float d = (float)(newShares - oldShares)/(float)oldShares;
       delta.emplace_back(std::make_tuple(cusip,getValue(matchNode),d));
+    } else {
+      newAdd.emplace_back(std::make_tuple(cusip,getValue(row),1.));
     }
     row = row->next_sibling();
-  }
+  } while (row->next_sibling());
 
   std::sort(delta.begin(),delta.end(),sortByValue);
 
@@ -115,6 +118,18 @@ int main(int argc, char *argv[]){
               << std::get<1>(tp) << "</td><td>"
               << getNameIssuer(nn) << "</td><td>"
               << std::get<2>(tp)*100 << "%</td></tr>" <<std::endl;
+  }
+  std::cout << "</table>\n";
+
+
+  std::sort(newAdd.begin(),newAdd.end(),sortByValue);
+  std::cout << "<table>\n" ;
+
+  for(const auto& tp: newAdd){
+    rapidxml::xml_node<>* nn = getNode(doc2.first_node(),std::get<0>(tp));
+    assert(nn);
+    std::cout << "\t<tr " << c1 << "><td>" << std::get<0>(tp) << ++ii << "</td><td>" << std::get<1>(tp)
+              << "</td><td>" << getNameIssuer(nn) << "</td>" << "\n" ;
   }
   std::cout << "</table>\n";
   return 0;
