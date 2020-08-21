@@ -30,17 +30,57 @@ rapidxml::xml_node<>* getNode(const rapidxml::xml_node<>* root,
   return 0;
 }
 
-int getNShares(rapidxml::xml_node<>* node){
-  rapidxml::xml_node<>* nn = node->first_node("shrsOrPrnAmt")->first_node("sshPrnamt");
+
+bool sortByValue(const std::tuple<std::string, int, float>& a,
+                 const std::tuple<std::string, int, float>& b){
+  return !(std::get<1>(a) < std::get<1>(b));
+}
+
+
+////////////////// Position ///////////////////
+class Position {
+
+  std::string nameOfIssuer;
+  std::string cusip;
+  int value;
+  int nShares;
+  rapidxml::xml_node<>* next;
+  bool valid;
+
+  std::string getAsString( const rapidxml::xml_node<>* node, const std::string& tag);
+  int getAsInt( const rapidxml::xml_node<>* node, const std::string& tag);
+
+public:
+  Position(const rapidxml::xml_node<>* nn);
+  ~Position() = default;
+  std::string getCusip() { return cusip; }
+  std::string getIssuer() { return nameOfIssuer; }
+  int getValue() { return value; }
+  int getnShares() { return nShares; }
+  rapidxml::xml_node<>* getNext() { return next; }
+  bool isValid() { return valid; }
+};
+
+Position::Position(const rapidxml::xml_node<>* nn) :
+  nameOfIssuer(getAsString(nn,"nameOfIssuer")),
+  cusip(getAsString(nn,"cusip")),
+  value(getAsInt(nn,"value")),
+  nShares(getAsInt(nn->first_node("shrsOrPrnAmt"),"sshPrnamt")),
+  next(nn->next_sibling()),
+  valid(nn)
+{};
+
+std::string Position::getAsString(const rapidxml::xml_node<>* node, const std::string& tag){
+  rapidxml::xml_node<>* nn = node->first_node(tag.c_str());
   assert(nn);
   size_t s = nn->value_size();
   char ss[s];
   memcpy(ss,nn->value(),s);
-  return atoi(ss);
+  return std::string(ss);
 }
 
-int getValue(rapidxml::xml_node<>* node){
-  rapidxml::xml_node<>* nn = node->first_node("value");
+int Position::getAsInt(const rapidxml::xml_node<>* node, const std::string& tag){
+  rapidxml::xml_node<>* nn = node->first_node(tag.c_str());
   assert(nn);
   size_t s = nn->value_size();
   char ss[s];
@@ -49,24 +89,7 @@ int getValue(rapidxml::xml_node<>* node){
   sscanf(ss, "%d", &x);
   return x;
 }
-
-std::string getNameIssuer(rapidxml::xml_node<>* node){
-  rapidxml::xml_node<>* nn = node->first_node("nameOfIssuer");
-  assert(nn);
-  size_t s = nn->value_size();
-  char ss[s];
-  memcpy(ss,nn->value(),s);
-  return std::string(ss);
-}
-
-bool sortByValue(const std::tuple<std::string, int, float>& a,
-                 const std::tuple<std::string, int, float>& b){
-  return !(std::get<1>(a) < std::get<1>(b));
-}
-
-
-
-
+////////////////// Position ///////////////////
 
 int main(int argc, char *argv[]){
 
@@ -81,7 +104,7 @@ int main(int argc, char *argv[]){
   rapidxml::xml_document<> doc2;
   doc2.parse<0>(xml2.data());
 
-  rapidxml::xml_node<>* row = doc2.first_node()->first_node();
+  auto pos2 = Position(doc2.first_node()->first_node());
 
   std::vector<std::tuple<std::string,int,float>> delta;
   std::vector<std::tuple<std::string,int,float>> newAdd;
@@ -89,19 +112,19 @@ int main(int argc, char *argv[]){
   std::string cusip;
 
   do {
-    cusip = row->first_node("cusip")->value();
-    rapidxml::xml_node<>* matchNode = getNode(doc1.first_node(), cusip);
-    if(matchNode){
-      int oldShares = getNShares(matchNode);
-      int newShares = getNShares(row);
+    cusip = pos2.getCusip();
+    auto pos1 = Position(getNode(doc1, cusip));
+    if(pos1.isValid()){
+      int oldShares = pos1.getnShares();
+      int newShares = pos2.getnShares();
       assert(oldShares != 0);
-      float d = (float)(newShares - oldShares)/(float)oldShares;
-      delta.emplace_back(std::make_tuple(cusip,getValue(matchNode),d));
+      float ratio = (float)(newShares - oldShares)/(float)oldShares;
+      delta.emplace_back(std::make_tuple(cusip,pos2.getValue(),ratio));
     } else {
-      newAdd.emplace_back(std::make_tuple(cusip,getValue(row),1.));
+      newAdd.emplace_back(std::make_tuple(cusip,pos1.getValue(),1.));
     }
-    row = row->next_sibling();
-  } while (row->next_sibling());
+    pos1 = Position(pos1.getNext());
+  } while (pos2.getNext());
 
   std::sort(delta.begin(),delta.end(),sortByValue);
 
@@ -116,7 +139,7 @@ int main(int argc, char *argv[]){
     rapidxml::xml_node<>* nn = getNode(doc2.first_node(),std::get<0>(tp));
     std::cout << "\t<tr " << *c << "><td>" << ++ii << "</td><td>"
               << std::get<1>(tp) << "</td><td>"
-              << getNameIssuer(nn) << "</td><td>"
+              << pos2.getIssuer() << "</td><td>"
               << std::get<2>(tp)*100 << "%</td></tr>" <<std::endl;
   }
   std::cout << "</table>\n";
@@ -129,7 +152,7 @@ int main(int argc, char *argv[]){
     rapidxml::xml_node<>* nn = getNode(doc2.first_node(),std::get<0>(tp));
     assert(nn);
     std::cout << "\t<tr " << c1 << "><td>" << std::get<0>(tp) << ++ii << "</td><td>" << std::get<1>(tp)
-              << "</td><td>" << getNameIssuer(nn) << "</td>" << "\n" ;
+              << "</td><td>" << pos2.getIssuer() << "</td>" << "\n" ;
   }
   std::cout << "</table>\n";
   return 0;
