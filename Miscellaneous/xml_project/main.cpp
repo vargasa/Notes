@@ -110,8 +110,10 @@ int main(int argc, char *argv[]){
   std::vector<std::tuple<std::string,int,float>> newAdd;
 
   std::string cusip;
+  int totalPos2 = 0;
   do {
     cusip = pos2.getCusip();
+    totalPos2 += pos2.getValue();
     auto pos1 = Position(getNode(doc1.first_node(), cusip));
     if(pos1.isValid()){
       int oldShares = pos1.getnShares();
@@ -137,8 +139,8 @@ int main(int argc, char *argv[]){
     c = std::get<2>(tp) < 0? &c1:&c2;
     Position p = Position(getNode(doc2.first_node(),std::get<0>(tp)));
     std::cout << "\t<tr " << *c << "><td>" << ++ii << "</td><td>"
-              << std::get<1>(tp) << "</td><td>"
-              << p.getIssuer() << "</td><td>"
+              << static_cast<float>(std::get<1>(tp))*100.f/static_cast<float>(totalPos2) << "</td><td>"
+              << p.getIssuer() << "</td><td>" << p.getCusip() << "</td><td>"
               << std::get<2>(tp)*100 << "%</td></tr>" <<std::endl;
   }
   std::cout << "</table>\n";
