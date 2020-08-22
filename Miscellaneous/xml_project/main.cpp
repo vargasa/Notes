@@ -62,11 +62,11 @@ public:
 };
 
 Position::Position(const rapidxml::xml_node<>* nn) :
-  nameOfIssuer(getAsString(nn,"nameOfIssuer")),
-  cusip(getAsString(nn,"cusip")),
-  value(getAsInt(nn,"value")),
-  nShares(getAsInt(nn->first_node("shrsOrPrnAmt"),"sshPrnamt")),
-  next(nn->next_sibling()),
+  nameOfIssuer(nn? getAsString(nn,"nameOfIssuer") : ""),
+  cusip(nn? getAsString(nn,"cusip") : ""),
+  value(nn? getAsInt(nn,"value"):0),
+  nShares(nn? getAsInt(nn->first_node("shrsOrPrnAmt"),"sshPrnamt"):0),
+  next(nn? nn->next_sibling(): 0),
   valid(nn)
 {};
 
@@ -74,8 +74,8 @@ std::string Position::getAsString(const rapidxml::xml_node<>* node, const std::s
   rapidxml::xml_node<>* nn = node->first_node(tag.c_str());
   assert(nn);
   size_t s = nn->value_size();
-  char ss[s];
-  memcpy(ss,nn->value(),s);
+  char ss[s+1];
+  memcpy(ss,nn->value(),s+1);
   return std::string(ss);
 }
 
@@ -110,10 +110,9 @@ int main(int argc, char *argv[]){
   std::vector<std::tuple<std::string,int,float>> newAdd;
 
   std::string cusip;
-
   do {
     cusip = pos2.getCusip();
-    auto pos1 = Position(getNode(doc1, cusip));
+    auto pos1 = Position(getNode(doc1.first_node(), cusip));
     if(pos1.isValid()){
       int oldShares = pos1.getnShares();
       int newShares = pos2.getnShares();
@@ -121,9 +120,9 @@ int main(int argc, char *argv[]){
       float ratio = (float)(newShares - oldShares)/(float)oldShares;
       delta.emplace_back(std::make_tuple(cusip,pos2.getValue(),ratio));
     } else {
-      newAdd.emplace_back(std::make_tuple(cusip,pos1.getValue(),1.));
+      newAdd.emplace_back(std::make_tuple(cusip,pos2.getValue(),1.));
     }
-    pos1 = Position(pos1.getNext());
+    pos2 = Position(pos2.getNext());
   } while (pos2.getNext());
 
   std::sort(delta.begin(),delta.end(),sortByValue);
@@ -136,10 +135,10 @@ int main(int argc, char *argv[]){
   int ii = 0;
   for(const auto& tp: delta){
     c = std::get<2>(tp) < 0? &c1:&c2;
-    rapidxml::xml_node<>* nn = getNode(doc2.first_node(),std::get<0>(tp));
+    Position p = Position(getNode(doc2.first_node(),std::get<0>(tp)));
     std::cout << "\t<tr " << *c << "><td>" << ++ii << "</td><td>"
               << std::get<1>(tp) << "</td><td>"
-              << pos2.getIssuer() << "</td><td>"
+              << p.getIssuer() << "</td><td>"
               << std::get<2>(tp)*100 << "%</td></tr>" <<std::endl;
   }
   std::cout << "</table>\n";
@@ -149,10 +148,9 @@ int main(int argc, char *argv[]){
   std::cout << "<table>\n" ;
 
   for(const auto& tp: newAdd){
-    rapidxml::xml_node<>* nn = getNode(doc2.first_node(),std::get<0>(tp));
-    assert(nn);
+    Position p = Position(getNode(doc2.first_node(),std::get<0>(tp)));
     std::cout << "\t<tr " << c1 << "><td>" << std::get<0>(tp) << ++ii << "</td><td>" << std::get<1>(tp)
-              << "</td><td>" << pos2.getIssuer() << "</td>" << "\n" ;
+              << "</td><td>" << p.getIssuer() << "</td>" << "\n" ;
   }
   std::cout << "</table>\n";
   return 0;
