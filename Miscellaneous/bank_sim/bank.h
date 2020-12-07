@@ -1,5 +1,7 @@
 #include "loan.h"
 
+////////////////////////////////////////////
+
 class BalanceSheet {
 
 protected:
@@ -18,6 +20,7 @@ double BalanceSheet::GetTotalLiabilities() const{
   return total;
 };
 
+////////////////////////////////////////////
 
 class Bank : public BalanceSheet {
 
@@ -34,8 +37,11 @@ public:
   bool GrantLoan(double amount, double interest, uint period);
   double GetTotalAssets() const;
   double MaxLoan() const;
-  double GetReserveRate() { return reserveRate; }
+  double GetReserveRate() const { return reserveRate; }
+  std::vector<Loan> GetLoans() const { return loans; }
   std::string GetName() { return name; }
+  bool PayInstallment(uint loanIdx);
+
 };
 
 
@@ -43,6 +49,22 @@ Bank::Bank(std::string name, double reserveRate, double initialDeposit) : reserv
   name(name)
 {
   credits.emplace_back(initialDeposit);
+}
+
+bool Bank::PayInstallment(uint loanIdx){
+
+  assert(loanIdx < loans.size());
+
+  Loan& loan = loans[loanIdx];
+
+  double ins = loan.GetInstallment();
+  double capital = loan.GetAmount();
+  double interest = capital * loan.GetMonthlyInterest();
+  credits.emplace_back(interest);
+  loan.SetAmount(capital - (ins - interest));
+  loan.SetPeriod(loan.GetPeriod()-1);
+
+  return true;
 }
 
 void Bank::MakeDeposit(const double& amount){
@@ -107,7 +129,7 @@ double Bank::MaxLoan() const{
 double Bank::GetTotalAssets() const{
   double total = 0.;
   for(const auto& l: loans){
-    total += l.GetCapital();
+    total += l.GetAmount();
   }
   return total + GetCash();
 }

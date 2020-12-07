@@ -43,21 +43,45 @@ int main(){
   }
   std::cout << "\tTotal Cash: " << total << "\n";
 
-  total = 0;
-  for(auto& b: banks){
-    total += (b.GetTotalLiabilities());
-    std::cout << b.GetName() << " Liabilities\t" << b.GetTotalLiabilities() << std::endl;
+   for(auto& b: banks){
+    std::cout << b.GetName() << " Total Assets\t" << b.GetTotalAssets() << std::endl;
   }
-  std::cout << "\tTotal Credit: " << total << "\n";
+
+  for(auto& b: banks){
+    std::cout << b.GetName() << "Reserves:\t"  << b.GetCash()/b.GetTotalLiabilities() << "\n";
+  }
+
+  for(auto& b: banks){
+    std::vector<Loan> loans = b.GetLoans();
+    for(auto& l: loans){ /*We need some kind of loan identifier*/
+      for(uint i=0; i < l.GetPeriod(); ++i){
+        //std::cout << "Making Payment " << l.GetInstallment() << "\t" << l.GetAmortization()[0].second  << "\n";
+        b.PayInstallment(l);
+      }
+    }
+  }
+
+  std::cout << "\n====\nLoans paid\n=====\n";
+
 
   for(auto& b: banks){
     std::cout << b.GetName() << " Total Assets\t" << b.GetTotalAssets() << std::endl;
   }
 
-
   for(auto& b: banks){
     std::cout << b.GetName() << "Reserves:\t"  << b.GetCash()/b.GetTotalLiabilities() << "\n";
   }
+
+
+  total = 0.;
+  for(auto& b: banks){
+    total += b.GetCash();
+    std::cout << b.GetName() << " Cash:\t" <<  b.GetCash() << std::endl;
+  }
+  std::cout << "\tTotal Cash: " << total << "\n";
+
+
+
 
   // int n = 1;
   // std::cout << l1.GetInstallment() << "\n";
