@@ -5,11 +5,12 @@
 class Loan {
 
   double amount;
-  const double interest;
+  double interest;
   uint nperiod;
 
  public:
   Loan(double amount, double apy, int period);
+  ~Loan() {};
   double GetInstallment() const;
   std::vector<std::pair<double,double>> GetAmortizationTable() const;
   std::pair<double,double> GetAmortization() const;
@@ -17,6 +18,7 @@ class Loan {
   uint GetPeriod() const { return nperiod; }
   void SetAmount(double newCapital) { amount = newCapital; }
   bool SetPeriod(uint newPeriod) { nperiod = newPeriod; }
+  double GetAPY() const { return interest; }
   double GetMonthlyInterest() const;
 
   void PrintAmortizationTable() const;

@@ -53,6 +53,8 @@ Bank::Bank(std::string name, double reserveRate, double initialDeposit) : reserv
 
 bool Bank::PayInstallment(uint loanIdx){
 
+  const double zero = 1e-3;
+
   assert(loanIdx < loans.size());
 
   Loan& loan = loans[loanIdx];
@@ -63,6 +65,8 @@ bool Bank::PayInstallment(uint loanIdx){
   credits.emplace_back(interest);
   loan.SetAmount(capital - (ins - interest));
   loan.SetPeriod(loan.GetPeriod()-1);
+
+  if (loan.GetAmount() < zero) loans.erase(loans.begin() + loanIdx);
 
   return true;
 }
@@ -99,9 +103,6 @@ bool Bank::GrantLoan(double amount, double interest, uint period){
   double l = GetTotalLiabilities();
 
   assert(l+amount>0.);
-
-  /* std::cout << ((cash - amount)/(l+amount)) << std::endl; */
-  /* std::cout << reserveRate << std::endl; */
 
   if( ((cash - amount)/(l+amount)) > reserveRate ) {
     loans.emplace_back(Loan(amount,interest,period));
