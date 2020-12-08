@@ -1,93 +1,120 @@
 #include <iostream>
+#include <functional>
 #include <map>
 #include "bank.h"
 
 int main(){
 
-  std::vector<Bank> banks;
-  banks.emplace_back(Bank("A",0.10,100.));
-  banks.emplace_back(Bank("B",0.15,40.));
-  banks.emplace_back(Bank("C",0.14,35.));
-  banks.emplace_back(Bank("D",0.13,25.));
-  // banks.emplace_back(Bank("E",0.10,0.));
-  // banks.emplace_back(Bank("F",0.99,0.));
-  // banks.emplace_back(Bank("G",0.10,0.));
-  // banks.emplace_back(Bank("H",0.10,0.));
+  std::function<void(std::vector<Bank>&,double, int)> MakeAllLoans = [&]
+    (std::vector<Bank>& banks, double interest, int period){
 
-  auto getIndex = [&](int n){ return n % banks.size(); };
+    auto getIndex = [&](int n){ return n % banks.size(); };
 
-  double amount = 10.;
-  uint i = 0;
-  while(amount>0.01){
-    uint j = getIndex(i);
-    uint k = getIndex(i+1);
-    if(banks[j].GrantLoan(amount,3.,12)){
-      std::cout << "Bank " << banks[j].GetName() << " Granted Loan: $" << amount << "\n";
-      banks[k].MakeDeposit(amount);
-      std::cout << "\tMade deposit to bank " << banks[k].GetName() << " $" << amount << "\n";
-      std::cout << "\t"<< banks[k].GetName() <<" New Balance: " << banks[k].GetCash() << "\n";
-      amount = banks[k].MaxLoan() - 0.1;
-      std::cout << "\tNew Request " << i << " will be for: " << amount << "\n";
-    } else {
-      std::cout << "Loan denied: " << amount << "\n";
-      break;
+    double amount = banks[0].MaxLoan() - 0.01;
+    uint i = 0;
+    while(amount>1.){
+      uint j = getIndex(i);
+      uint k = getIndex(i+1);
+      if(banks[j].GrantLoan(amount,interest,period)){
+        //std::cout << banks[j].GetName() << " Granted Loan " << amount << "\n";
+        banks[k].MakeDeposit(amount);
+      } else {
+        //std::cout << banks[j].GetName() <<  " Loan denied: " << amount << "\n";
+        break;
+      }
+      amount = banks[k].MaxLoan() - 0.01;
+      ++i;
     }
-    ++i;
-  }
+  };
 
-  double total = 0.;
-
-  for(auto b: banks){
-    total += b.GetCash();
-    std::cout << b.GetName() << " Cash:\t" <<  b.GetCash() << std::endl;
-  }
-  std::cout << "\tTotal Cash: " << total << "\n";
-
-   for(auto& b: banks){
-    std::cout << b.GetName() << " Total Assets\t" << b.GetTotalAssets() << std::endl;
-  }
-
-  for(auto& b: banks){
-    std::cout << b.GetName() << "Reserves:\t"  << b.GetCash()/b.GetTotalLiabilities() << "\n";
-  }
-
-  for(auto& b: banks){
-    std::vector<Loan> loans = b.GetLoans();
-    for(auto& l: loans){ /*We need some kind of loan identifier*/
-      for(uint i=0; i < l.GetPeriod(); ++i){
-        //std::cout << "Making Payment " << l.GetInstallment() << "\t" << l.GetAmortization()[0].second  << "\n";
-        b.PayInstallment(l);
+  auto PrintListOfLoans = [&](std::vector<Bank>& banks) {
+    std::cout << "\n=======\nList of Loans\n=======\n";
+    for(auto& b:banks){
+      uint k = 0;
+      for(auto& l: b.GetLoans()){
+        std::cout << b.GetName() << "Loan" << k << "\t"
+                  << l.GetAmount() << "\t" << l.GetAPY() << "\t"
+                  << l.GetPeriod() << "\t" << l.GetInstallment() << "\n";
+        k++;
       }
     }
+    std::cout << "=======\nEOF\n=======\n";
+  };
+
+
+  std::function<double(std::vector<Bank>&)> PayAllLoans = [](std::vector<Bank>& banks) {
+
+    auto GetTotalCash = [&] {
+      double total = 0.;
+      for(auto& b: banks){
+        total += b.GetCash();
+      }
+      return total;
+    };
+
+    auto GetTotalLiabilities = [&] {
+      double tot = 0.;
+      for(auto& b: banks){
+        tot += b.GetTotalLiabilities();
+      }
+      return tot;
+    };
+
+    //PrintListOfLoans();
+    const int periods = banks[0].GetLoans()[0].GetPeriod(); /*Assuming all periods are same*/
+    for(uint m = 0; m < periods; ++m){
+      for(auto& b: banks){
+        uint priorSize = b.GetLoans().size();
+        for(uint i = 0; i< b.GetLoans().size();++i){
+          b.PayInstallment(i);
+          uint newSize = b.GetLoans().size();
+          if(newSize<priorSize /*A loan has been dropped fully paid*/) --i;
+        }
+      }
+    }
+    //PrintListOfLoans();
+    return GetTotalCash();
+    //return GetTotalLiabilities();
+  };
+
+  for(uint k = 1; k < 10; ++k){ /*Loan Interest*/
+    double interest = 0.01*k;
+
+    for(uint j = 1; j < 20; ++j){ /*Bank reserve requirement*/
+      double reserve = 0.005*j;
+
+      for(uint i = 1; i < 30; ++i){ /*Loan period of time in years*/
+        int period = 12 * i;
+
+        std::vector<Bank> banks;
+        banks.emplace_back(Bank("A",reserve,0.));
+        banks[0].MakeDeposit(10);
+        MakeAllLoans(banks,interest,period);
+        std::cout << period << "\t" << PayAllLoans(banks) << "\n";
+        break
+      }
+      break;
+    }
+    break;
+
+    // double total;
+    // for(auto& b: banks){
+    //   total = 0.;
+    //   for(auto& l: b.GetLoans()){
+    //     total += l.GetAmount();
+    //   }
+    //   std::cout << b.GetName() << " Total Loans\t" << total << std::endl;
+    // }
+
+    // for(auto& b: banks){
+    //   std::cout << b.GetName() << " Cash:\t" <<  b.GetCash() << std::endl;
+    //   std::cout << b.GetName() << " Total Assets\t" << b.GetTotalAssets() << std::endl;
+    //   std::cout << b.GetName() << " Liabilities:\t"  << b.GetTotalLiabilities() << "\n";
+    //   std::cout << b.GetName() << " Reserves:\t"  << b.GetCash()/b.GetTotalLiabilities() << "\n";
+    // }
+
   }
 
-  std::cout << "\n====\nLoans paid\n=====\n";
-
-
-  for(auto& b: banks){
-    std::cout << b.GetName() << " Total Assets\t" << b.GetTotalAssets() << std::endl;
-  }
-
-  for(auto& b: banks){
-    std::cout << b.GetName() << "Reserves:\t"  << b.GetCash()/b.GetTotalLiabilities() << "\n";
-  }
-
-
-  total = 0.;
-  for(auto& b: banks){
-    total += b.GetCash();
-    std::cout << b.GetName() << " Cash:\t" <<  b.GetCash() << std::endl;
-  }
-  std::cout << "\tTotal Cash: " << total << "\n";
-
-
-
-
-  // int n = 1;
-  // std::cout << l1.GetInstallment() << "\n";
-  // for(const auto& row: l1.GetAmortization()){
-  //   std::cout << n++ << "\t" << row.first << "\t" << row.second << "\t" <<l1.GetInstallment() << "\n";
-  // }
 
 
   return 0;
